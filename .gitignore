@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+data/uploads/*
+data/temporary/*
+!data/uploads/.gitkeep
+!data/temporary/.gitkeep
+.env
+.DS_Store
+./tests
+./prompt

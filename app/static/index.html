@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identity Verification System | Python MVP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-badge">MVP</div>
+                <div class="brand-info">
+                    <h1>FaceID Verification System</h1>
+                    <p>InsightFace &middot; PaddleOCR &middot; OpenCV &middot; FastAPI</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="system-status">
+                    <span class="status-dot"></span>
+                    <span id="system-status-text">Backend Active</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- TOP WORKFLOW BAR -->
+        <div class="workflow-steps">
+            <div class="step-badge active" id="step-1-badge">
+                <span class="step-num">1</span>
+                <span class="step-title">Upload Document</span>
+            </div>
+            <div class="step-divider"></div>
+            <div class="step-badge" id="step-2-badge">
+                <span class="step-num">2</span>
+                <span class="step-title">OCR & Face Analysis</span>
+            </div>
+            <div class="step-divider"></div>
+            <div class="step-badge" id="step-3-badge">
+                <span class="step-num">3</span>
+                <span class="step-title">Live Camera Match</span>
+            </div>
+            <div class="step-divider"></div>
+            <div class="step-badge" id="step-4-badge">
+                <span class="step-num">4</span>
+                <span class="step-title">Final Verdict</span>
+            </div>
+        </div>
+
+        <div class="grid-layout">
+            <!-- LEFT PANEL: DOCUMENT UPLOAD & EXTRACTION -->
+            <section class="card panel-left">
+                <div class="card-header">
+                    <h2><span class="icon">📄</span> Document Processing</h2>
+                    <span class="sub-label">Step 1 & 2</span>
+                </div>
+
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="document-input" accept="image/jpeg,image/png,image/webp" hidden>
+                    <div class="dropzone-content" id="dropzone-placeholder">
+                        <div class="upload-icon">⬆️</div>
+                        <p class="dropzone-main-text"><strong>Click or drag & drop</strong> identity document</p>
+                        <p class="dropzone-sub-text">Supported formats: JPG, PNG, WEBP</p>
+                    </div>
+                    <div class="document-preview-container hidden" id="preview-container">
+                        <img id="document-preview-img" src="" alt="Document Preview">
+                        <button type="button" class="btn-clear" id="btn-clear-doc" title="Remove image">✕</button>
+                    </div>
+                </div>
+
+                <div class="analysis-status-box hidden" id="doc-analysis-box">
+                    <div class="status-row">
+                        <span class="status-label">Document Face:</span>
+                        <span class="badge" id="badge-doc-face">PENDING</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Detected Face Count:</span>
+                        <span class="value-mono" id="doc-face-count">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">OCR Extracted Name:</span>
+                        <span class="value-mono" id="doc-ocr-name">-</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="expected-name-input">Expected Full Name (for Name Match):</label>
+                    <input type="text" id="expected-name-input" placeholder="e.g. SUNAV SHARMA" spellcheck="false">
+                    <span class="input-hint">Automatically populated by OCR. You can edit this field to test mismatch cases.</span>
+                </div>
+
+                <button class="btn btn-primary" id="btn-analyze" disabled>
+                    <span>⚡ Analyze Document</span>
+                </button>
+            </section>
+
+            <!-- RIGHT PANEL: LIVE CAMERA & VERIFICATION -->
+            <section class="card panel-right">
+                <div class="card-header">
+                    <h2><span class="icon">📷</span> Live Camera Verification</h2>
+                    <span class="sub-label">Step 3 & 4</span>
+                </div>
+
+                <div class="camera-controls">
+                    <div class="camera-select-wrapper">
+                        <label for="camera-select">Camera Source:</label>
+                        <select id="camera-select">
+                            <option value="0">Loading cameras...</option>
+                        </select>
+                    </div>
+                    <div class="camera-btn-group">
+                        <button class="btn btn-secondary" id="btn-toggle-cam">
+                            <span id="cam-toggle-icon">▶</span> <span id="cam-toggle-text">Start Camera</span>
+                        </button>
+                        <button class="btn btn-primary" id="btn-verify-now" disabled>
+                            <span>🎯 Verify Match</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="camera-view-container">
+                    <div class="camera-placeholder" id="camera-placeholder">
+                        <div class="camera-off-icon">📷</div>
+                        <p>Camera feed is inactive.</p>
+                        <p class="sub">Click "Start Camera" to start live feed.</p>
+                    </div>
+                    <img id="live-stream-img" class="camera-feed hidden" src="" alt="Live Stream">
+                </div>
+
+                <!-- LIVE METRICS BAR -->
+                <div class="live-metrics-bar">
+                    <div class="metric-item">
+                        <span class="metric-title">Face Similarity</span>
+                        <div class="metric-value-row">
+                            <span class="metric-val" id="val-sim-score">0.0000</span>
+                            <span class="metric-target">/ Threshold: <strong id="val-threshold">0.6500</strong></span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="sim-progress-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- BOTTOM DECISION SUMMARY BAR -->
+        <section class="card result-card" id="result-summary-card">
+            <div class="result-header">
+                <h3>Verification Breakdown</h3>
+                <span class="result-timestamp" id="result-timestamp">Ready for analysis</span>
+            </div>
+
+            <div class="decision-grid">
+                <div class="decision-box" id="box-doc-face">
+                    <span class="decision-label">DOCUMENT FACE</span>
+                    <span class="decision-status" id="res-doc-face">WAITING</span>
+                </div>
+                <div class="decision-box" id="box-name">
+                    <span class="decision-label">NAME MATCH</span>
+                    <span class="decision-status" id="res-name-match">WAITING</span>
+                </div>
+                <div class="decision-box" id="box-face">
+                    <span class="decision-label">FACE MATCH</span>
+                    <span class="decision-status" id="res-face-match">WAITING</span>
+                </div>
+                <div class="decision-box" id="box-sim">
+                    <span class="decision-label">SIMILARITY SCORE</span>
+                    <span class="decision-score" id="res-sim-score">----</span>
+                </div>
+                <div class="decision-box final-box" id="box-final">
+                    <span class="decision-label">FINAL RESULT</span>
+                    <span class="decision-status final-status" id="res-final-verdict">NOT VERIFIED</span>
+                </div>
+            </div>
+
+            <div class="error-banner hidden" id="error-banner">
+                <span class="error-icon">⚠️</span>
+                <div class="error-text" id="error-banner-text">Error message here</div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>Python Identity Verification MVP &middot; InsightFace buffalo_l &middot; PaddleOCR &middot; Cosine Similarity &ge; 0.65</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
