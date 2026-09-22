@@ -6,10 +6,11 @@ class ErrorCode(str, Enum):
     DOCUMENT_INVALID = "DOCUMENT_INVALID"
     DOCUMENT_FACE_NOT_FOUND = "DOCUMENT_FACE_NOT_FOUND"
     MULTIPLE_DOCUMENT_FACES = "MULTIPLE_DOCUMENT_FACES"
-    OCR_FAILED = "OCR_FAILED"
-    NAME_NOT_FOUND = "NAME_NOT_FOUND"
     LIVE_FACE_NOT_FOUND = "LIVE_FACE_NOT_FOUND"
     MULTIPLE_LIVE_FACES = "MULTIPLE_LIVE_FACES"
+    FACE_QUALITY_TOO_LOW = "FACE_QUALITY_TOO_LOW"
+    OCR_FAILED = "OCR_FAILED"
+    NAME_NOT_FOUND = "NAME_NOT_FOUND"
     FACE_COMPARISON_FAILED = "FACE_COMPARISON_FAILED"
     FACE_BELOW_THRESHOLD = "FACE_BELOW_THRESHOLD"
     NAME_MISMATCH = "NAME_MISMATCH"
@@ -33,6 +34,11 @@ class AppException(Exception):
         self.message = message
         self.status_code = status_code
         self.details = details or {}
+
+
+class FaceQualityTooLowException(AppException):
+    def __init__(self, message: str = "Detected face quality is too low for reliable verification.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(ErrorCode.FACE_QUALITY_TOO_LOW, message, status_code=422, details=details)
 
 
 class DocumentInvalidException(AppException):

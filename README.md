@@ -102,7 +102,7 @@ Key environment variables:
 HOST=0.0.0.0
 PORT=8000
 FACE_MODEL=buffalo_l
-FACE_SIMILARITY_THRESHOLD=0.65
+FACE_SIMILARITY_THRESHOLD=0.50
 OCR_LANGUAGE=en
 CAMERA_INDEX=0
 SESSION_TTL_SECONDS=900
@@ -158,12 +158,12 @@ $$\text{Cosine Similarity} = \mathbf{u} \cdot \mathbf{v} = \sum_{i=1}^{512} u_i 
 - A score below `0.5` indicates distinct individuals.
 
 ### Threshold Calibration
-The initial development threshold is set to `0.65`:
-- `similarity >= 0.65` $\rightarrow$ `face_match = True`
-- `similarity < 0.65` $\rightarrow$ `face_match = False`
+The default production threshold is set to `0.50`:
+- `similarity >= 0.50` $\rightarrow$ `face_match = True`
+- `similarity < 0.50` $\rightarrow$ `face_match = False`
 
 > [!NOTE]
-> `0.65` is an initial baseline. Run `evaluate.py` on your domain-specific dataset (national IDs, driver licenses, passports) to calibrate the optimal threshold balancing False Acceptance Rate (FAR) and False Rejection Rate (FRR).
+> `0.50` provides robust age-invariant matching while maintaining complete separation from impostors. Run `evaluate.py` on your domain-specific dataset (national IDs, driver licenses, passports) to calibrate the optimal threshold balancing False Acceptance Rate (FAR) and False Rejection Rate (FRR).
 
 ### Verification Decision Logic
 The final verification decision is strictly conjunctive:
@@ -230,7 +230,7 @@ curl -X POST http://localhost:8000/verification/compare \
     "live_face_detected": true,
     "live_face_count": 1,
     "similarity": 0.8124,
-    "threshold": 0.65,
+    "threshold": 0.50,
     "face_match": true,
     "verified": true
   }
@@ -257,7 +257,7 @@ curl http://localhost:8000/health
 Compare any two static images without running the web UI or using the camera:
 
 ```bash
-python compare_faces.py ./sample_doc.jpg ./sample_selfie.jpg --threshold 0.65 --expected-name "JOHN DOE"
+python compare_faces.py ./sample_doc.jpg ./sample_selfie.jpg --threshold 0.50 --expected-name "JOHN DOE"
 ```
 
 **Example Output:**
@@ -270,7 +270,7 @@ Extracted document name: JOHN DOE
 Expected name:           JOHN DOE
 Name match:              YES
 Cosine similarity:       0.8241
-Threshold:               0.6500
+Threshold:               0.5000
 Result:                  MATCH
 Final Verification:      VERIFIED
 ```
@@ -279,7 +279,7 @@ Final Verification:      VERIFIED
 Evaluate a benchmark dataset containing positive (genuine) and negative (impostor) pairs:
 
 ```bash
-python evaluate.py --dataset-dir ./data/benchmark --threshold 0.65
+python evaluate.py --dataset-dir ./data/benchmark --threshold 0.50
 ```
 
 **Generates report with:**

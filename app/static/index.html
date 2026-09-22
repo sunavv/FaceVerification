@@ -79,6 +79,10 @@
                         <span class="badge" id="badge-doc-face">PENDING</span>
                     </div>
                     <div class="status-row">
+                        <span class="status-label">Face Quality:</span>
+                        <span class="badge" id="badge-doc-quality">GOOD</span>
+                    </div>
+                    <div class="status-row">
                         <span class="status-label">Detected Face Count:</span>
                         <span class="value-mono" id="doc-face-count">-</span>
                     </div>
@@ -138,7 +142,7 @@
                         <span class="metric-title">Face Similarity</span>
                         <div class="metric-value-row">
                             <span class="metric-val" id="val-sim-score">0.0000</span>
-                            <span class="metric-target">/ Threshold: <strong id="val-threshold">0.6500</strong></span>
+                            <span class="metric-target">/ Threshold: <strong id="val-threshold">0.5000</strong></span>
                         </div>
                         <div class="progress-bar">
                             <div class="progress-fill" id="sim-progress-fill" style="width: 0%;"></div>
@@ -147,6 +151,174 @@
                 </div>
             </section>
         </div>
+
+        <!-- BIOMETRIC FACE COMPARISON & RESOLUTION INSPECTION SECTION -->
+        <section class="card biometric-comparison-card" id="biometric-comparison-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <h2><span class="icon">🔬</span> Biometric Face Inspection & Comparison</h2>
+                    <span class="sub-label">Resolution Enhancement, Landmark Extraction & 1:1 Vector Alignment</span>
+                </div>
+                <div class="header-right">
+                    <span class="badge" id="badge-comparison-status">AWAITING INPUT</span>
+                </div>
+            </div>
+
+            <div class="biometric-grid">
+                <!-- EXTRACTED DOCUMENT FACE PANEL -->
+                <div class="face-inspect-box" id="doc-face-inspect-box">
+                    <div class="box-top-bar">
+                        <span class="face-source-tag doc-tag">📄 EXTRACTED DOCUMENT FACE</span>
+                        <span class="resolution-tag" id="doc-res-tag">Original: -- &times; --</span>
+                    </div>
+
+                    <div class="hud-viewport-wrapper">
+                        <div class="hud-corner top-left"></div>
+                        <div class="hud-corner top-right"></div>
+                        <div class="hud-corner bottom-left"></div>
+                        <div class="hud-corner bottom-right"></div>
+                        <div class="hud-scan-line" id="doc-hud-scanline"></div>
+
+                        <div class="hud-viewport" id="doc-hud-viewport">
+                            <div class="hud-empty-state" id="doc-face-empty">
+                                <div class="empty-icon">👤</div>
+                                <p>No document face extracted yet</p>
+                                <span class="sub">Upload an ID document to extract face</span>
+                            </div>
+                            <img id="doc-face-img" class="face-display-img hidden" src="" alt="Extracted Document Face">
+                        </div>
+                    </div>
+
+                    <!-- RESOLUTION ADJUSTMENT & ENHANCEMENT CONTROLS -->
+                    <div class="face-controls-panel">
+                        <div class="control-row">
+                            <span class="ctrl-label">Resolution Mode:</span>
+                            <div class="btn-toggle-group">
+                                <button type="button" class="btn-toggle active" id="btn-mode-enhanced" title="Lanczos-4 upscaled with edge-preserving noise filter">Enhanced High-Res</button>
+                                <button type="button" class="btn-toggle" id="btn-mode-raw" title="Raw unscaled crop from document scan">Raw Crop</button>
+                            </div>
+                        </div>
+
+                        <div class="control-row">
+                            <span class="ctrl-label">Edge Sharpness:</span>
+                            <div class="btn-toggle-group">
+                                <button type="button" class="btn-toggle-sm" data-sharpness="soft" id="btn-sharp-soft">Natural</button>
+                                <button type="button" class="btn-toggle-sm active" data-sharpness="balanced" id="btn-sharp-balanced">Balanced</button>
+                                <button type="button" class="btn-toggle-sm" data-sharpness="crisp" id="btn-sharp-crisp">Ultra-Crisp</button>
+                            </div>
+                        </div>
+
+                        <div class="control-row">
+                            <span class="ctrl-label">Inspection Zoom:</span>
+                            <div class="zoom-slider-wrapper">
+                                <input type="range" id="doc-zoom-slider" min="100" max="250" value="100" step="10">
+                                <span class="zoom-value" id="doc-zoom-val">1.0&times;</span>
+                            </div>
+                        </div>
+
+                        <div class="face-meta-grid" id="doc-face-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Output Res</span>
+                                <span class="meta-val" id="doc-meta-outres">--</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Quality</span>
+                                <span class="meta-val" id="doc-meta-quality">--</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Sharpness (σ²)</span>
+                                <span class="meta-val" id="doc-meta-sharpness">--</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Contrast</span>
+                                <span class="meta-val" id="doc-meta-contrast">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CENTER BIOMETRIC COMPARISON BRIDGE -->
+                <div class="biometric-bridge" id="biometric-bridge">
+                    <div class="bridge-icon-wrapper">
+                        <div class="biometric-circle" id="bridge-circle">
+                            <span class="bridge-icon">⚡</span>
+                        </div>
+                        <div class="pulse-ring"></div>
+                    </div>
+                    <div class="bridge-details">
+                        <span class="bridge-title">1:1 Deep Cosine Match</span>
+                        <div class="bridge-score-box">
+                            <span class="bridge-score" id="bridge-sim-score">--.----</span>
+                            <span class="bridge-thresh" id="bridge-thresh-val">Threshold: 0.5000</span>
+                        </div>
+                        <div class="bridge-status-pill" id="bridge-status-pill">WAITING VERIFICATION</div>
+                        <span class="bridge-subtext">ArcFace ResNet-50 512-D Normalized Vector Cosine Angle</span>
+                    </div>
+                </div>
+
+                <!-- MATCHED LIVE CAMERA FACE PANEL -->
+                <div class="face-inspect-box" id="live-face-inspect-box">
+                    <div class="box-top-bar">
+                        <span class="face-source-tag live-tag">📷 MATCHED LIVE CAMERA FACE</span>
+                        <span class="resolution-tag" id="live-res-tag">Captured: -- &times; --</span>
+                    </div>
+
+                    <div class="hud-viewport-wrapper">
+                        <div class="hud-corner top-left"></div>
+                        <div class="hud-corner top-right"></div>
+                        <div class="hud-corner bottom-left"></div>
+                        <div class="hud-corner bottom-right"></div>
+                        <div class="hud-scan-line" id="live-hud-scanline"></div>
+
+                        <div class="hud-viewport" id="live-hud-viewport">
+                            <div class="hud-empty-state" id="live-face-empty">
+                                <div class="empty-icon">🎯</div>
+                                <p>Awaiting Live Camera Verification</p>
+                                <span class="sub">Click "Verify Match" to capture and inspect live face</span>
+                            </div>
+                            <img id="live-face-img" class="face-display-img hidden" src="" alt="Matched Live Camera Face">
+                        </div>
+                    </div>
+
+                    <div class="face-controls-panel">
+                        <div class="control-row">
+                            <span class="ctrl-label">Resolution Mode:</span>
+                            <div class="btn-toggle-group">
+                                <button type="button" class="btn-toggle active" id="btn-live-mode-enhanced">Standard (256×256)</button>
+                                <button type="button" class="btn-toggle" id="btn-live-mode-raw">Raw Frame Crop</button>
+                            </div>
+                        </div>
+
+                        <div class="control-row">
+                            <span class="ctrl-label">Inspection Zoom:</span>
+                            <div class="zoom-slider-wrapper">
+                                <input type="range" id="live-zoom-slider" min="100" max="250" value="100" step="10">
+                                <span class="zoom-value" id="live-zoom-val">1.0&times;</span>
+                            </div>
+                        </div>
+
+                        <div class="face-meta-grid" id="live-face-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Capture Res</span>
+                                <span class="meta-val" id="live-meta-outres">--</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Quality</span>
+                                <span class="meta-val" id="live-meta-quality">--</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Confidence</span>
+                                <span class="meta-val" id="live-meta-conf">--</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Biometric Match</span>
+                                <span class="meta-val" id="live-meta-match">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- BOTTOM DECISION SUMMARY BAR -->
         <section class="card result-card" id="result-summary-card">
@@ -159,6 +331,14 @@
                 <div class="decision-box" id="box-doc-face">
                     <span class="decision-label">DOCUMENT FACE</span>
                     <span class="decision-status" id="res-doc-face">WAITING</span>
+                </div>
+                <div class="decision-box" id="box-quality">
+                    <span class="decision-label">REF QUALITY</span>
+                    <span class="decision-status" id="res-doc-quality">WAITING</span>
+                </div>
+                <div class="decision-box" id="box-live-quality">
+                    <span class="decision-label">LIVE QUALITY</span>
+                    <span class="decision-status" id="res-live-quality">WAITING</span>
                 </div>
                 <div class="decision-box" id="box-name">
                     <span class="decision-label">NAME MATCH</span>
@@ -186,7 +366,7 @@
     </main>
 
     <footer class="app-footer">
-        <p>Python Identity Verification MVP &middot; InsightFace buffalo_l &middot; PaddleOCR &middot; Cosine Similarity &ge; 0.65</p>
+        <p>Python Identity Verification MVP &middot; InsightFace buffalo_l &middot; PaddleOCR &middot; Cosine Similarity &ge; 0.50</p>
     </footer>
 
     <script src="/static/app.js"></script>

@@ -37,8 +37,15 @@ async def analyze_document(file: UploadFile = File(...)):
                 face_detected=result["face_detected"],
                 face_count=result["face_count"],
                 name=result["name"],
+                face_quality=result.get("face_quality", "GOOD"),
+                quality_details=result.get("quality_details", {}),
                 all_extracted_text=result["all_extracted_text"],
                 session_id=result["session_id"],
+                face_image_base64=result.get("face_image_base64"),
+                raw_face_image_base64=result.get("raw_face_image_base64"),
+                face_crop_width=result.get("face_crop_width"),
+                face_crop_height=result.get("face_crop_height"),
+                enhanced_resolution=result.get("enhanced_resolution", [256, 256]),
             ),
         )
     except AppException as e:

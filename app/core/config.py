@@ -16,8 +16,9 @@ class Settings(BaseSettings):
 
     # Face Recognition
     FACE_MODEL: str = "buffalo_l"
-    FACE_SIMILARITY_THRESHOLD: float = 0.65
+    FACE_SIMILARITY_THRESHOLD: float = 0.50
     INSIGHTFACE_ROOT: str = str(Path.home() / ".insightface")
+    ENFORCE_STRICT_FACE_QUALITY: bool = False
 
     # OCR
     OCR_LANGUAGE: str = "en"
