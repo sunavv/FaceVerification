@@ -4,7 +4,7 @@ Explicit 1:1 Face Verification CLI Tool.
 Compares a reference identity document face against a live/selfie face.
 
 Usage:
-    python verify.py --document <path_to_doc> --live <path_to_live> [--threshold 0.50] [--expected-name "NAME"]
+    python verify.py --document <path_to_doc> --live <path_to_live> [--threshold 0.40] [--expected-name "NAME"]
 """
 
 import sys

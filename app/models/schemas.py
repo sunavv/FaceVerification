@@ -66,6 +66,7 @@ class VerificationResultData(BaseModel):
     similarity: float = Field(..., description="Cosine similarity score between reference & live face embeddings")
     threshold: float = Field(..., description="Configured similarity threshold")
     face_match: bool = Field(..., description="Whether similarity meets or exceeds threshold")
+    confidence: Optional[str] = Field("VALID_MATCH", description="Tiered confidence assessment: HIGH, VALID_MATCH, BORDERLINE, REJECT")
 
     # Backward compatibility aliases
     document_valid: bool = Field(True, description="Document format and readability validity")

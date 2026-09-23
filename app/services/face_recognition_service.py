@@ -229,7 +229,8 @@ class FaceRecognitionService:
                 details=quality_res,
             )
 
-        norm_embedding = self.normalize_embedding(face.embedding)
+        # Extract robust multi-representation TTA embedding
+        norm_embedding = self.extract_robust_embedding(image, face, is_document=True)
 
         # Extract raw and enhanced/upscaled face crops
         raw_crop = crop_face_bbox(image, bbox, padding_ratio=0.18)
@@ -265,7 +266,7 @@ class FaceRecognitionService:
         Process a live camera frame:
         - Must contain exactly 1 face.
         - Evaluates face quality & usability.
-        - Generates 512-D normalized age-robust facial embedding.
+        - Generates 512-D normalized age-robust facial embedding with TTA.
         """
         if enforce_quality is None:
             enforce_quality = settings.ENFORCE_STRICT_FACE_QUALITY
@@ -296,7 +297,8 @@ class FaceRecognitionService:
                 details=quality_res,
             )
 
-        norm_embedding = self.normalize_embedding(face.embedding)
+        # Extract robust multi-representation TTA embedding
+        norm_embedding = self.extract_robust_embedding(image, face, is_document=False)
 
         # Extract raw and enhanced/upscaled face crops
         raw_crop = crop_face_bbox(image, bbox, padding_ratio=0.18)
@@ -323,9 +325,78 @@ class FaceRecognitionService:
             "enhanced_resolution": [256, 256],
         }
 
+    def extract_robust_embedding(
+        self,
+        image: np.ndarray,
+        face: Any,
+        is_document: bool = False,
+    ) -> np.ndarray:
+        """
+        Multi-Representation Test-Time Augmentation (TTA) Embedding Extraction:
+        
+        Mass-production cross-domain verification (scanned physical ID cards vs live webcams)
+        must account for:
+        1. Age progression (cranial/facial aging, wrinkles, skin elasticity).
+        2. Halftone print noise / rosette patterns on laminated government IDs.
+        3. Webcam sensor noise, lens focal length compression, and lighting asymmetries.
+        
+        Extracts representations from:
+        - Canonical 5-landmark affine alignment (112x112).
+        - Horizontal flip augmentation (canonical + mirrored face representation).
+        - For printed/scanned documents: Bilateral filter to suppress scanner halftone printing dots.
+        - CLAHE illumination balancing to remove harsh directional shadows.
+        - Deep ArcFace feature extraction across representations, weighted fusion, and L2 normalization.
+        """
+        if face is None or not hasattr(face, "kps") or face.kps is None:
+            if hasattr(face, "embedding") and face.embedding is not None:
+                return self.normalize_embedding(face.embedding)
+            return np.zeros(512, dtype=np.float32)
+
+        try:
+            from insightface.utils import face_align
+            rec = self.app.models.get("recognition")
+            if rec is None:
+                return self.normalize_embedding(face.embedding)
+
+            # 1. Canonical aligned face
+            aimg = face_align.norm_crop(image, landmark=face.kps, image_size=112)
+            aimg_flip = cv2.flip(aimg, 1)
+
+            # 2. Lighting-normalized CLAHE representation
+            lab = cv2.cvtColor(aimg, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+            cl = clahe.apply(l)
+            aimg_clahe = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_LAB2BGR)
+            aimg_clahe_flip = cv2.flip(aimg_clahe, 1)
+
+            crops = [aimg, aimg_flip, aimg_clahe, aimg_clahe_flip]
+            weights = [0.40, 0.40, 0.10, 0.10]
+
+            if is_document:
+                # 3. Scanner print rosette noise suppression (bilateral filter preserves bone contours)
+                aimg_smooth = cv2.bilateralFilter(aimg, d=5, sigmaColor=30, sigmaSpace=30)
+                aimg_smooth_flip = cv2.flip(aimg_smooth, 1)
+                crops.extend([aimg_smooth, aimg_smooth_flip])
+                weights = [0.30, 0.30, 0.10, 0.10, 0.10, 0.10]
+
+            feats = rec.get_feat(crops)
+            combined = np.zeros(512, dtype=np.float32)
+            for feat, w in zip(feats, weights):
+                combined += self.normalize_embedding(feat) * w
+
+            return self.normalize_embedding(combined)
+        except Exception as e:
+            logger.warning(f"Fallback to standard embedding extraction due to: {e}")
+            if hasattr(face, "embedding") and face.embedding is not None:
+                return self.normalize_embedding(face.embedding)
+            return np.zeros(512, dtype=np.float32)
+
     @staticmethod
     def normalize_embedding(embedding: np.ndarray) -> np.ndarray:
         """L2 normalize embedding vector."""
+        if embedding is None:
+            return np.zeros(512, dtype=np.float32)
         emb = np.asarray(embedding, dtype=np.float32).flatten()
         norm = np.linalg.norm(emb)
         if norm > 1e-6:
@@ -344,7 +415,8 @@ class FaceRecognitionService:
             {
                 "similarity": float,
                 "threshold": float,
-                "face_match": bool
+                "face_match": bool,
+                "confidence": str
             }
         """
         thresh = threshold if threshold is not None else settings.FACE_SIMILARITY_THRESHOLD
@@ -361,10 +433,21 @@ class FaceRecognitionService:
         sim_rounded = round(sim, 4)
         is_match = sim >= thresh
 
+        # Multi-tiered production confidence classification
+        if sim >= 0.50:
+            confidence = "HIGH"
+        elif sim >= thresh:
+            confidence = "VALID_MATCH"
+        elif sim >= 0.32:
+            confidence = "BORDERLINE"
+        else:
+            confidence = "REJECT"
+
         return {
             "similarity": sim_rounded,
             "threshold": round(thresh, 4),
             "face_match": is_match,
+            "confidence": confidence,
         }
 
 

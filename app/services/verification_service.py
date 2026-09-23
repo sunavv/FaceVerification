@@ -243,6 +243,7 @@ class VerificationService:
             "similarity": sim_result["similarity"],
             "threshold": sim_result["threshold"],
             "face_match": face_match,
+            "confidence": sim_result.get("confidence", "VALID_MATCH" if face_match else "REJECT"),
 
             "document_valid": True,
             "document_face_detected": True,
@@ -318,6 +319,7 @@ class VerificationService:
             "similarity": sim_result["similarity"],
             "threshold": sim_result["threshold"],
             "face_match": face_match,
+            "confidence": sim_result.get("confidence", "VALID_MATCH" if face_match else "REJECT"),
 
             "document_valid": True,
             "document_face_detected": True,

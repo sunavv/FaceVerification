@@ -10,7 +10,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - FACE_MODEL=buffalo_l
-      - FACE_SIMILARITY_THRESHOLD=0.50
+      - FACE_SIMILARITY_THRESHOLD=0.40
       - OCR_LANGUAGE=en
       - CAMERA_INDEX=0
     volumes:

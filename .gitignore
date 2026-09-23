@@ -11,3 +11,4 @@ data/temporary/*
 .DS_Store
 tests
 prompt
+standalone-ui

@@ -2,7 +2,7 @@
 """
 CLI Utility to compare two static images without using the webcam.
 Usage:
-    python compare_faces.py <document_image> <live_image> [--threshold 0.50] [--expected-name "NAME"]
+    python compare_faces.py <document_image> <live_image> [--threshold 0.40] [--expected-name "NAME"]
 """
 
 import sys

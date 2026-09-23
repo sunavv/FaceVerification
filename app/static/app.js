@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeSessionId = null;
     let selectedFile = null;
     let isCameraActive = false;
-    let configuredThreshold = 0.50;
+    let configuredThreshold = 0.40;
 
     // Biometric Inspection State
     let docEnhancedB64 = null;
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const healthRes = await fetch('/health');
             if (healthRes.ok) {
                 const data = await healthRes.json();
-                configuredThreshold = data.similarity_threshold || 0.50;
+                configuredThreshold = data.similarity_threshold || 0.40;
                 valThreshold.innerText = configuredThreshold.toFixed(4);
             }
         } catch (e) {
@@ -320,20 +320,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (v.face_match) {
                 bridgeCircle.className = 'biometric-circle matched';
                 bridgeSimScore.className = 'bridge-score pass';
-                bridgeStatusPill.innerText = 'MATCH CONFIRMED';
+                if (sim >= 0.50) {
+                    bridgeStatusPill.innerText = 'HIGH CONFIDENCE MATCH';
+                } else {
+                    bridgeStatusPill.innerText = 'MATCH CONFIRMED (CROSS-DOMAIN)';
+                }
                 bridgeStatusPill.className = 'bridge-status-pill pass';
                 docFaceInspectBox.className = 'face-inspect-box matched-glow';
                 liveFaceInspectBox.className = 'face-inspect-box matched-glow';
-                badgeComparisonStatus.innerText = '1:1 MATCH CONFIRMED';
+                badgeComparisonStatus.innerText = sim >= 0.50 ? 'HIGH CONFIDENCE MATCH' : '1:1 MATCH CONFIRMED';
                 badgeComparisonStatus.className = 'badge pass';
             } else {
                 bridgeCircle.className = 'biometric-circle mismatch';
                 bridgeSimScore.className = 'bridge-score fail';
-                bridgeStatusPill.innerText = 'FACE MISMATCH';
+                if (sim >= 0.32) {
+                    bridgeStatusPill.innerText = 'BORDERLINE (CHECK LIGHTING / RETRY)';
+                } else {
+                    bridgeStatusPill.innerText = 'FACE MISMATCH';
+                }
                 bridgeStatusPill.className = 'bridge-status-pill fail';
                 docFaceInspectBox.className = 'face-inspect-box mismatch-glow';
                 liveFaceInspectBox.className = 'face-inspect-box mismatch-glow';
-                badgeComparisonStatus.innerText = 'FACE MISMATCH';
+                badgeComparisonStatus.innerText = sim >= 0.32 ? 'BORDERLINE (RETRY)' : 'FACE MISMATCH';
                 badgeComparisonStatus.className = 'badge fail';
             }
         }
