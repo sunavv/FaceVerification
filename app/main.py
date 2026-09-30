@@ -14,8 +14,12 @@ from app.api.routes_verification import router as verification_router
 from app.api.routes_camera import router as camera_router
 from app.services.camera_service import camera_service
 
-# Base static dir
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+from app.core.middleware import SecurityHeadersMiddleware
+
+# Static UI directories: prefer standalone-ui, with fallback to legacy static directory
+STANDALONE_UI_DIR = Path(__file__).resolve().parent.parent / "standalone-ui"
+LEGACY_STATIC_DIR = Path(__file__).resolve().parent / "static"
+UI_DIR = STANDALONE_UI_DIR if STANDALONE_UI_DIR.exists() else LEGACY_STATIC_DIR
 
 
 @asynccontextmanager
@@ -37,6 +41,9 @@ app = FastAPI(
     description="Python-based Identity Verification MVP with InsightFace, PaddleOCR, and OpenCV.",
     lifespan=lifespan,
 )
+
+# Security headers middleware (CSP, HSTS, X-Content-Type-Options, Permissions-Policy, COOP, CORP)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware for local development and future JavaFX desktop client
 app.add_middleware(
@@ -100,10 +107,14 @@ app.include_router(document_router)
 app.include_router(verification_router)
 app.include_router(camera_router)
 
-# Mount static files for web UI
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+# Mount static files for web UI (standalone-ui)
+if UI_DIR.exists():
+    # Support /static/... for backwards compatibility
+    app.mount("/static", StaticFiles(directory=str(UI_DIR)), name="static")
 
     @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     async def serve_ui():
-        return FileResponse(str(STATIC_DIR / "index.html"))
+        return FileResponse(str(UI_DIR / "index.html"))
+
+    # Mount UI root for standalone-ui assets (style.css, app.js, etc.)
+    app.mount("/", StaticFiles(directory=str(UI_DIR)), name="standalone-ui")
