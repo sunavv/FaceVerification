@@ -45,15 +45,15 @@ class SecurityHeadersMiddleware:
                     "form-action 'self'"
                 )
 
-                # HTTP Strict Transport Security (HSTS)
-                headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+                # HTTP Strict Transport Security (HSTS) with preload
+                headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
                 # Prevent MIME sniffing
                 headers["X-Content-Type-Options"] = "nosniff"
 
-                # Frame options & legacy XSS protection
+                # Frame options & modern XSS protection (disable buggy legacy auditor in favor of CSP)
                 headers["X-Frame-Options"] = "DENY"
-                headers["X-XSS-Protection"] = "1; mode=block"
+                headers["X-XSS-Protection"] = "0"
 
                 # Referrer Policy
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -65,6 +65,7 @@ class SecurityHeadersMiddleware:
 
                 # Cross-Origin Policies
                 headers["Cross-Origin-Opener-Policy"] = "same-origin"
+                headers["Cross-Origin-Embedder-Policy"] = "credentialless"
                 headers["Cross-Origin-Resource-Policy"] = "same-origin"
 
                 # Mask or remove Server header to prevent fingerprinting
