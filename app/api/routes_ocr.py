@@ -3,7 +3,7 @@
 import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
-from app.models.response import OCRResponse, DocumentMetadata
+from app.models.response import OCRResponse, DocumentMetadata, HealthResponse
 from app.core.config import settings
 from app.services.ocr_service import OCRService
 
@@ -12,6 +12,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["OCR"])
 ocr_service = OCRService()
 
+@router.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint providing status and engine metadata."""
+    return HealthResponse(
+        status="healthy",
+        version="1.0.0",
+        active_engine=ocr_service.engine.get_name(),
+        supported_engines=["paddleocr_ppocrv6", "mock_engine"],
+        supported_formats=settings.allowed_extensions,
+    )
 
 @router.post("/ocr", response_model=OCRResponse)
 async def extract_text(file: UploadFile = File(..., description="Document image file (PNG, JPG, WebP, BMP, TIFF)")):
