@@ -27,23 +27,54 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        path = scope.get("path", "")
+        is_docs_endpoint = (
+            path in ("/docs", "/redoc", "/openapi.json")
+            or path.startswith(("/docs/", "/redoc/"))
+        )
+
         async def send_with_security_headers(message):
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
 
-                # Content-Security-Policy (CSP)
-                headers["Content-Security-Policy"] = (
-                    "default-src 'self'; "
-                    "script-src 'self'; "
-                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                    "font-src 'self' https://fonts.gstatic.com data:; "
-                    "img-src 'self' data: blob: http: https:; "
-                    "media-src 'self' blob:; "
-                    "connect-src 'self' http: https: ws: wss:; "
-                    "frame-ancestors 'none'; "
-                    "base-uri 'self'; "
-                    "form-action 'self'"
-                )
+                if is_docs_endpoint:
+                    # Swagger UI & ReDoc require external CDN assets (jsdelivr, fastapi.tiangolo.com)
+                    # and inline script execution for initializing SwaggerUIBundle / Redoc.
+                    headers["Content-Security-Policy"] = (
+                        "default-src 'self'; "
+                        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+                        "font-src 'self' https://fonts.gstatic.com data:; "
+                        "img-src 'self' data: blob: https://fastapi.tiangolo.com https://cdn.jsdelivr.net http: https:; "
+                        "media-src 'self' blob:; "
+                        "connect-src 'self' http: https: ws: wss:; "
+                        "worker-src 'self' blob:; "
+                        "frame-ancestors 'none'; "
+                        "base-uri 'self'; "
+                        "form-action 'self'"
+                    )
+                    # Allow popups for OAuth and allow cross-origin fetching of the openapi spec
+                    headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+                    headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+                    # Note: Cross-Origin-Embedder-Policy is omitted for docs to prevent CORB/COEP blocking of CDN assets
+                else:
+                    # Strict Content-Security-Policy (CSP) for App & APIs
+                    headers["Content-Security-Policy"] = (
+                        "default-src 'self'; "
+                        "script-src 'self'; "
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                        "font-src 'self' https://fonts.gstatic.com data:; "
+                        "img-src 'self' data: blob: http: https:; "
+                        "media-src 'self' blob:; "
+                        "connect-src 'self' http: https: ws: wss:; "
+                        "frame-ancestors 'none'; "
+                        "base-uri 'self'; "
+                        "form-action 'self'"
+                    )
+                    # Cross-Origin Policies for Application
+                    headers["Cross-Origin-Opener-Policy"] = "same-origin"
+                    headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+                    headers["Cross-Origin-Resource-Policy"] = "same-origin"
 
                 # HTTP Strict Transport Security (HSTS) with preload
                 headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
@@ -62,11 +93,6 @@ class SecurityHeadersMiddleware:
                 headers["Permissions-Policy"] = (
                     "camera=(self), microphone=(), geolocation=(), payment=(), usb=()"
                 )
-
-                # Cross-Origin Policies
-                headers["Cross-Origin-Opener-Policy"] = "same-origin"
-                headers["Cross-Origin-Embedder-Policy"] = "credentialless"
-                headers["Cross-Origin-Resource-Policy"] = "same-origin"
 
                 # Mask or remove Server header to prevent fingerprinting
                 if "server" in headers:
