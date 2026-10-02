@@ -28,10 +28,10 @@
   };
 
   function detectDefaultApiUrl() {
-    if (window.location.protocol.startsWith('http') && window.location.port === '8000') {
-      return `${window.location.protocol}//${window.location.hostname}:8000`;
+    if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) {
+      return window.location.origin;
     }
-    return 'http://localhost:8000';
+    return '';
   }
 
   // ==========================================================================
@@ -110,7 +110,9 @@
   // Initialization
   // ==========================================================================
   function init() {
-    el.inputApiUrl.value = state.apiUrl;
+    if (state.apiUrl) {
+      el.inputApiUrl.value = state.apiUrl;
+    }
     el.inputThreshold.value = state.threshold;
     el.thresholdValText.innerText = Number(state.threshold).toFixed(2);
     updateMeterThresholdVisual(state.threshold);
@@ -172,10 +174,11 @@
     el.inputApiUrl.addEventListener('change', (e) => {
       let url = e.target.value.trim().replace(/\/+$/, '');
       if (url && !/^https?:\/\//i.test(url)) {
-        url = `http://${url}`;
+        const proto = (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('https')) ? 'https:' : 'http:';
+        url = `${proto}//${url}`;
         el.inputApiUrl.value = url;
       }
-      state.apiUrl = url;
+      state.apiUrl = url || detectDefaultApiUrl();
       checkBackendHealth();
       if (state.cameraMode === 'server' && state.isCameraRunning) {
         restartServerStream();
@@ -473,7 +476,7 @@
       startBrowserCamera();
     } else {
       // In server mode, ask backend to cycle camera index
-      fetch(`${state.apiUrl}/cameras/select?index=0`, { method: 'POST' }).catch(() => {});
+      fetch(`${state.apiUrl}/cameras/select?index=0`, { method: 'POST' }).catch(() => { });
       restartServerStream();
     }
   }

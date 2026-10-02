@@ -1,0 +1,13 @@
+# Apache Hardening & Security Configuration
+# Place this in Apache DocumentRoot or reverse-proxy directory
+
+# 1. Disable server signature and version banner
+ServerSignature Off
+
+# 2. Suppress Server response headers exposing Apache/OS/OpenSSL versions
+<IfModule mod_headers.c>
+    Header unset Server
+    Header always unset Server
+    Header unset X-Powered-By
+    Header always unset X-Powered-By
+</IfModule>
