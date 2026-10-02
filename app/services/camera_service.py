@@ -131,15 +131,22 @@ class CameraService:
                 # Draw status banner at top
                 cv2.rectangle(frame, (0, 0), (w, 40), (20, 20, 20), -1)
 
+                primary_face = None
                 if face_count == 0:
                     status_text = "FACE STATUS: NO FACE DETECTED"
                     status_color = (0, 165, 255)  # Orange
                 elif face_count == 1:
+                    primary_face = faces[0]
                     status_text = "FACE STATUS: 1 FACE (OK)"
                     status_color = (0, 255, 0)  # Green
                 else:
-                    status_text = f"FACE STATUS: {face_count} FACES (MULTIPLE - REJECT)"
-                    status_color = (0, 0, 255)  # Red
+                    if getattr(settings, "CROWDED_MODE_ENABLED", True):
+                        primary_face = face_service.select_primary_live_face(frame, faces)
+                        status_text = f"FACE STATUS: {face_count} FACES (PRIMARY LOCKED)"
+                        status_color = (0, 255, 0)  # Green
+                    else:
+                        status_text = f"FACE STATUS: {face_count} FACES (MULTIPLE - REJECT)"
+                        status_color = (0, 0, 255)  # Red
 
                 cv2.putText(frame, status_text, (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, status_color, 2)
 
@@ -147,12 +154,27 @@ class CameraService:
                 for i, face in enumerate(faces):
                     bbox = [int(v) for v in face.bbox[:4]]
                     x1, y1, x2, y2 = bbox
+                    is_primary = (primary_face is not None and face is primary_face)
 
-                    box_color = (0, 255, 0) if face_count == 1 else (0, 0, 255)
+                    if is_primary:
+                        box_color = (0, 255, 0)  # Bright green for primary subject
+                    else:
+                        box_color = (0, 165, 255) if getattr(settings, "CROWDED_MODE_ENABLED", True) else (0, 0, 255)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
 
-                    # If exactly 1 face and reference embedding exists, compute similarity
-                    if face_count == 1 and reference_embedding is not None and face.embedding is not None:
+                    if not is_primary and face_count > 1:
+                        cv2.putText(
+                            frame,
+                            "BACKGROUND",
+                            (x1 + 4, max(15, y1 - 6)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.45,
+                            box_color,
+                            1,
+                        )
+
+                    # If primary face and reference embedding exists, compute similarity
+                    if is_primary and reference_embedding is not None and face.embedding is not None:
                         sim_res = face_service.compute_cosine_similarity(
                             reference_embedding,
                             face.embedding,
@@ -161,10 +183,10 @@ class CameraService:
                         sim = sim_res["similarity"]
                         matched = sim_res["face_match"]
 
-                        sim_label = f"Sim: {sim:.4f} | {'MATCH' if matched else 'NO MATCH'}"
+                        sim_label = f"Primary: {sim:.4f} | {'MATCH' if matched else 'NO MATCH'}"
                         label_bg_color = (0, 180, 0) if matched else (0, 0, 200)
 
-                        cv2.rectangle(frame, (x1, max(0, y1 - 25)), (x1 + 220, y1), label_bg_color, -1)
+                        cv2.rectangle(frame, (x1, max(0, y1 - 25)), (x1 + 240, y1), label_bg_color, -1)
                         cv2.putText(
                             frame,
                             sim_label,

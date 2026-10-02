@@ -189,19 +189,92 @@ class FaceRecognitionService:
             logger.error(f"Face detection failed: {str(e)}")
             return []
 
+    def select_largest_face(self, faces: list):
+        """
+        Select the largest face by bounding box area (width * height).
+        Ideal for document analysis and OCR where the primary ID portrait is significantly
+        larger than secondary ghost images, holographic watermarks, national emblems, or background artifacts.
+        """
+        if not faces:
+            return None
+        if len(faces) == 1:
+            return faces[0]
+
+        return max(
+            faces,
+            key=lambda f: max(0.0, float(f.bbox[2] - f.bbox[0])) * max(0.0, float(f.bbox[3] - f.bbox[1])),
+        )
+
+    def select_primary_live_face(self, image: np.ndarray, faces: list):
+        """
+        Select the primary target face in a crowded live camera frame.
+        Uses a composite heuristic ranking:
+        1. Bounding box area (proximity to lens)
+        2. Proximity to frame center (centrality)
+        3. Head pose frontality (penalizes heads turned significantly away)
+        4. Filters out small background bystander faces.
+        """
+        if not faces:
+            return None
+        if len(faces) == 1:
+            return faces[0]
+
+        h_img, w_img = image.shape[:2]
+        center_x, center_y = w_img / 2.0, h_img / 2.0
+        max_dist = max(1.0, np.hypot(center_x, center_y))
+
+        # Filter out background bystander faces smaller than threshold (if any candidate remains)
+        min_h = h_img * getattr(settings, "MIN_FACE_HEIGHT_RATIO_LIVE", 0.08)
+        candidates = [f for f in faces if max(0.0, float(f.bbox[3] - f.bbox[1])) >= min_h]
+        if not candidates:
+            candidates = faces
+
+        scored = []
+        for face in candidates:
+            x1, y1, x2, y2 = [float(v) for v in face.bbox[:4]]
+            w = max(0.0, x2 - x1)
+            h = max(0.0, y2 - y1)
+            area = w * h
+
+            cx = x1 + w / 2.0
+            cy = y1 + h / 2.0
+
+            # Centrality: 1.0 at screen center, decreasing radially outwards
+            dist = np.hypot(cx - center_x, cy - center_y)
+            centrality = max(0.1, 1.0 - (dist / max_dist))
+
+            # Pose penalty if head is turned away (e.g. bystander walking past)
+            pose_weight = 1.0
+            pose = getattr(face, "pose", None)
+            if pose is not None and len(pose) >= 2:
+                pitch, yaw = float(pose[0]), float(pose[1])
+                if abs(yaw) > 35 or abs(pitch) > 30:
+                    pose_weight = 0.5
+
+            det_score = float(getattr(face, "det_score", 1.0))
+            score = area * (centrality ** 1.5) * pose_weight * det_score
+            scored.append((score, face))
+
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return scored[0][1]
+
     def process_document_face(
         self,
         image: np.ndarray,
         enforce_quality: Optional[bool] = None,
+        enforce_single_face: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Process an identity document image:
-        - Must contain exactly 1 face.
+        - When multiple faces are present (e.g. ghost portrait, watermark, background),
+          selects the largest face if ALLOW_MULTIPLE_DOCUMENT_FACES is enabled.
         - Evaluates face quality & usability.
         - Generates 512-D normalized age-robust facial embedding.
         """
         if enforce_quality is None:
             enforce_quality = settings.ENFORCE_STRICT_FACE_QUALITY
+        if enforce_single_face is None:
+            enforce_single_face = not getattr(settings, "ALLOW_MULTIPLE_DOCUMENT_FACES", True)
 
         faces = self.detect_all_faces(image)
         face_count = len(faces)
@@ -211,11 +284,17 @@ class FaceRecognitionService:
                 "DOCUMENT_FACE_NOT_FOUND: No face detected in the identity document. Ensure the document photograph is clearly visible and not obstructed."
             )
         elif face_count > 1:
-            raise MultipleDocumentFacesException(
-                f"MULTIPLE_DOCUMENT_FACES: {face_count} faces detected. The document must contain exactly one face."
+            if enforce_single_face:
+                raise MultipleDocumentFacesException(
+                    f"MULTIPLE_DOCUMENT_FACES: {face_count} faces detected. The document must contain exactly one face."
+                )
+            logger.info(
+                f"Multiple ({face_count}) faces detected on document. Selecting the largest face as the primary ID portrait."
             )
+            face = self.select_largest_face(faces)
+        else:
+            face = faces[0]
 
-        face = faces[0]
         bbox = [float(x) for x in face.bbox]
         kps = getattr(face, "kps", None)
 
@@ -243,7 +322,8 @@ class FaceRecognitionService:
 
         return {
             "face_detected": True,
-            "face_count": 1,
+            "face_count": face_count,
+            "selected_face_method": "largest_face" if face_count > 1 else "single_face",
             "bbox": bbox,
             "det_score": float(getattr(face, "det_score", 1.0)),
             "quality": quality_res["quality"],
@@ -261,15 +341,19 @@ class FaceRecognitionService:
         self,
         image: np.ndarray,
         enforce_quality: Optional[bool] = None,
+        enforce_single_face: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Process a live camera frame:
-        - Must contain exactly 1 face.
+        - In crowded mode (CROWDED_MODE_ENABLED=True), selects the primary subject
+          based on size, frame centrality, and frontality rather than failing.
         - Evaluates face quality & usability.
         - Generates 512-D normalized age-robust facial embedding with TTA.
         """
         if enforce_quality is None:
             enforce_quality = settings.ENFORCE_STRICT_FACE_QUALITY
+        if enforce_single_face is None:
+            enforce_single_face = not getattr(settings, "CROWDED_MODE_ENABLED", True)
 
         faces = self.detect_all_faces(image)
         face_count = len(faces)
@@ -279,11 +363,17 @@ class FaceRecognitionService:
                 "LIVE_FACE_NOT_FOUND: No face detected in the live camera frame."
             )
         elif face_count > 1:
-            raise MultipleLiveFacesException(
-                f"MULTIPLE_LIVE_FACES: {face_count} faces detected in camera frame. Only one person must be visible."
+            if enforce_single_face:
+                raise MultipleLiveFacesException(
+                    f"MULTIPLE_LIVE_FACES: {face_count} faces detected in camera frame. Only one person must be visible."
+                )
+            logger.info(
+                f"Crowded live frame: {face_count} faces detected. Applying primary subject selection (size + centrality + pose)."
             )
+            face = self.select_primary_live_face(image, faces)
+        else:
+            face = faces[0]
 
-        face = faces[0]
         bbox = [float(x) for x in face.bbox]
         kps = getattr(face, "kps", None)
 
@@ -311,7 +401,8 @@ class FaceRecognitionService:
 
         return {
             "face_detected": True,
-            "face_count": 1,
+            "face_count": face_count,
+            "selected_face_method": "primary_subject" if face_count > 1 else "single_face",
             "bbox": bbox,
             "det_score": float(getattr(face, "det_score", 1.0)),
             "quality": quality_res["quality"],

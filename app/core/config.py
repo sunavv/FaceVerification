@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     FACE_SIMILARITY_THRESHOLD: float = 0.40
     INSIGHTFACE_ROOT: str = str(Path.home() / ".insightface")
     ENFORCE_STRICT_FACE_QUALITY: bool = False
+    CROWDED_MODE_ENABLED: bool = True
+    ALLOW_MULTIPLE_DOCUMENT_FACES: bool = True
+    MIN_FACE_HEIGHT_RATIO_LIVE: float = 0.08
 
     # OCR
     OCR_LANGUAGE: str = "en"

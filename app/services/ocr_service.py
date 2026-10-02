@@ -234,6 +234,30 @@ class OCRService:
             error=None,
         )
 
+    def detect_largest_face(self, image: np.ndarray) -> Optional[Dict[str, Any]]:
+        """
+        Detect all faces on the document and return the largest face detected.
+        Used to identify the primary ID photo, ignoring ghost portraits, holograms, or background faces.
+        """
+        try:
+            from app.services.face_recognition_service import face_recognition_service
+            faces = face_recognition_service.detect_all_faces(image)
+            if not faces:
+                return None
+            largest = face_recognition_service.select_largest_face(faces)
+            bbox = [float(v) for v in largest.bbox[:4]]
+            return {
+                "face_count": len(faces),
+                "bbox": bbox,
+                "width": max(0.0, bbox[2] - bbox[0]),
+                "height": max(0.0, bbox[3] - bbox[1]),
+                "area": max(0.0, (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])),
+                "det_score": float(getattr(largest, "det_score", 1.0)),
+            }
+        except Exception as e:
+            logger.warning(f"Failed to detect largest face in document: {str(e)}")
+            return None
+
 
 # Singleton instance
 ocr_service = OCRService()
