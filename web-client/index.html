@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document OCR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="container">
+    <!-- Simple Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>Document OCR</h1>
+        <p class="subtitle">Upload a document to extract information</p>
+      </div>
+      <div class="header-right">
+        <div class="server-config">
+          <label for="server-url-input">Server:</label>
+          <input type="text" id="server-url-input" value="http://103.144.195.105:8000" />
+          <button type="button" id="btn-preset-remote" class="btn-sm active">Remote</button>
+          <button type="button" id="btn-preset-local" class="btn-sm">Local</button>
+          <button type="button" id="btn-check-connection" class="btn-sm">Check</button>
+          <span id="connection-status-badge" class="status-indicator">
+            <span id="connection-status-text">Checking...</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main 2-Column Content -->
+    <main class="main-grid">
+      <!-- Left Column: Document Upload & Clean Preview -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Document</h2>
+          <div class="header-actions">
+            <!-- Hidden toggle for compatibility, default to off so we don't highlight the module -->
+            <input type="checkbox" id="toggle-bounding-boxes" style="display: none;" />
+            <input type="checkbox" id="toggle-fast-mode" checked style="display: none;" />
+          </div>
+        </div>
+
+        <!-- Upload Dropzone -->
+        <div id="drop-zone" class="dropzone">
+          <input type="file" id="file-input"
+            accept="image/png, image/jpeg, image/jpg, image/webp, image/bmp, image/tiff" hidden />
+          <p>Drag & drop document here, or <button type="button" id="btn-browse-file" class="btn-link">browse</button>
+          </p>
+          <span class="file-types">Supports PNG, JPG, WebP, BMP, TIFF</span>
+        </div>
+
+        <!-- Document Info Meta -->
+        <div class="doc-meta">
+          <div><span>File:</span> <strong id="doc-filename">None</strong></div>
+          <div><span>Size:</span> <strong id="doc-size">-</strong></div>
+          <div><span>Dimensions:</span> <strong id="doc-resolution">-</strong></div>
+        </div>
+
+        <!-- Clean Image Preview (No Highlight Overlays) -->
+        <div id="canvas-container" class="preview-area">
+          <canvas id="document-canvas"></canvas>
+          <div id="canvas-placeholder" class="placeholder-text">
+            No document loaded
+          </div>
+          <div id="canvas-tooltip" class="canvas-tooltip hidden" style="display: none;"></div>
+        </div>
+
+        <!-- Action Button -->
+        <button type="button" id="btn-run-ocr" class="btn-primary" disabled>
+          <span class="btn-spinner hidden" id="ocr-spinner"></span>
+          <span id="ocr-button-text">Extract Information</span>
+        </button>
+      </section>
+
+      <!-- Right Column: Extracted Information Output -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Retrieved Information</h2>
+        </div>
+
+        <!-- Telemetry Summary Bar -->
+        <div class="telemetry-bar">
+          <div class="telemetry-item">Lines: <strong id="kpi-lines">0</strong></div>
+          <div class="telemetry-item">Server Time: <strong id="kpi-time">-</strong></div>
+          <div class="telemetry-item">Total Time: <strong id="kpi-roundtrip">-</strong></div>
+          <!-- Hidden compatibility elements -->
+          <span id="kpi-engine" style="display: none;">-</span>
+          <span id="kpi-preprocessing" style="display: none;">-</span>
+        </div>
+
+        <!-- Output Tabs -->
+        <div class="tabs">
+          <div class="tab-nav">
+            <button type="button" class="tab-btn active" data-tab="tab-fulltext">Full Text</button>
+            <button type="button" class="tab-btn" data-tab="tab-lines">Lines (<span
+                id="tab-lines-count">0</span>)</button>
+            <button type="button" class="tab-btn" data-tab="tab-json">JSON</button>
+          </div>
+
+          <!-- Tab: Full Extracted Text -->
+          <div id="tab-fulltext" class="tab-pane active">
+            <div class="tab-actions">
+              <span class="stats-text"><span id="fulltext-char-count">0 characters</span>, <span
+                  id="fulltext-word-count">0 words</span></span>
+              <button type="button" id="btn-copy-fulltext" class="btn-sm">Copy Text</button>
+            </div>
+            <textarea id="full-text-output" readonly placeholder="Extracted text will appear here..."></textarea>
+          </div>
+
+          <!-- Tab: Recognized Lines List -->
+          <div id="tab-lines" class="tab-pane">
+            <div class="tab-actions">
+              <span class="stats-text">Extracted text line by line</span>
+              <button type="button" id="btn-copy-lines" class="btn-sm">Copy Lines</button>
+            </div>
+            <div id="lines-list" class="lines-list">
+              <div class="empty-state">No lines extracted yet.</div>
+            </div>
+          </div>
+
+          <!-- Tab: Raw JSON -->
+          <div id="tab-json" class="tab-pane">
+            <div class="tab-actions">
+              <span class="stats-text">Raw API response</span>
+              <button type="button" id="btn-copy-json" class="btn-sm">Copy JSON</button>
+            </div>
+            <pre id="json-output" class="json-box"><code>{}</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Simple Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

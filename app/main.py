@@ -18,6 +18,7 @@ from app.core.middleware import SecurityHeadersMiddleware
 
 # Static UI directories: prefer standalone-ui, with fallback to legacy static directory
 STANDALONE_UI_DIR = Path(__file__).resolve().parent.parent / "standalone-ui"
+WEBCLIENT_UI_DIR = Path(__file__).resolve().parent.parent / "web-client"
 LEGACY_STATIC_DIR = Path(__file__).resolve().parent / "static"
 UI_DIR = STANDALONE_UI_DIR if STANDALONE_UI_DIR.exists() else LEGACY_STATIC_DIR
 
@@ -120,5 +121,10 @@ if UI_DIR.exists():
     async def serve_ui():
         return FileResponse(str(UI_DIR / "index.html"))
 
+    @app.api_route("/OCR", methods=["GET", "HEAD"], include_in_schema=False)
+    async def serve_ocr_ui():
+        return FileResponse(str(WEBCLIENT_UI_DIR / "index.html"))
+
     # Mount UI root for standalone-ui assets (style.css, app.js, etc.)
     app.mount("/", StaticFiles(directory=str(UI_DIR)), name="standalone-ui")
+    app.mount("/OCR", StaticFiles(directory=str(WEBCLIENT_UI_DIR)), name="web-client-ui")
