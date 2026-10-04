@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -104,6 +104,15 @@ async def health_check():
         cameras_available=len(cams),
     )
 
+@app.get("/OCR", include_in_schema=False)
+async def redirect_ocr():
+    return RedirectResponse("/OCR/")
+
+@app.get("/OCR/", include_in_schema=False)
+async def serve_ocr_ui():
+    return FileResponse(str(WEBCLIENT_UI_DIR / "index.html"))
+
+app.mount("/OCR", StaticFiles(directory=str(WEBCLIENT_UI_DIR)), name="web-client")
 
 # Register API Routers
 app.include_router(document_router)
@@ -121,10 +130,9 @@ if UI_DIR.exists():
     async def serve_ui():
         return FileResponse(str(UI_DIR / "index.html"))
 
-    @app.api_route("/OCR", methods=["GET", "HEAD"], include_in_schema=False)
-    async def serve_ocr_ui():
-        return FileResponse(str(WEBCLIENT_UI_DIR / "index.html"))
+    # @app.api_route("/OCR", methods=["GET", "HEAD"], include_in_schema=False)
+    # async def serve_ui():
+    #     return FileResponse(str(WEBCLIENT_UI_DIR / "index.html"))
 
     # Mount UI root for standalone-ui assets (style.css, app.js, etc.)
-    app.mount("/", StaticFiles(directory=str(UI_DIR)), name="standalone-ui")
-    app.mount("/OCR", StaticFiles(directory=str(WEBCLIENT_UI_DIR)), name="web-client-ui")
+    app.mount("/", StaticFiles(directory=str(UI_DIR), html=True), name="standalone-ui")
